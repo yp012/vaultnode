@@ -1,0 +1,4 @@
+paho-mqtt==2.1.0
+pycryptodome==3.23.0
+pytest==9.2.0
+rich==15.0.0

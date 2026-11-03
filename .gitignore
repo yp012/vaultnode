@@ -1,0 +1,54 @@
+# C/C++ build artifacts
+build/
+cmake-build-*/
+out/
+*.o
+*.obj
+*.a
+*.so
+*.dylib
+*.exe
+*.out
+*.elf
+*.bin
+*.hex
+*.map
+compile_commands.json
+CMakeCache.txt
+CMakeFiles/
+.cache/
+
+# Static analysis output
+cppcheck-report.*
+*.plist
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.egg-info/
+
+# Docker
+.docker/
+docker-compose.override.yml
+*.env
+.env
+
+# Secrets / key material (never commit)
+*.pem
+*.key
+*.crt
+secrets/
+
+# OS / editors
+.DS_Store
+.vscode/
+.idea/
+
+# Keep the dev-only env template tracked (overrides *.env / .env above)
+!.env.example
+
+# Firmware persistent state (docs/PROTOCOL.md §5.4)
+vaultnode_state.json
+vaultnode_state.json.tmp*
