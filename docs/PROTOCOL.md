@@ -44,6 +44,7 @@ All keys are 32 bytes, supplied as 64 hex chars via environment variables.
 | `MQTT_HOST` | yes | Broker hostname (e.g. `mosquitto`). |
 | `MQTT_PORT` | no | Default `1883`. |
 | `VAULTNODE_STATE_PATH` | no | Persistent state file (§5.4). Default `/var/lib/vaultnode/vaultnode_state.json`. |
+| `VAULTNODE_BIND_ADDR` | no | IPv4 address that both the reader channel (§2) and the control socket (§4.1) bind to. Default `127.0.0.1`. |
 
 **Startup validation.** The firmware MUST refuse to start (non-zero exit, error to stderr)
 if any required variable is missing, if a key is not exactly 64 valid hex chars, if a key is all-zero,
@@ -272,6 +273,7 @@ malformed messages cannot burn sequence numbers. (A command rejected at step 5 s
 | Temp/humidity sensor | I²C addr **0x44** (SHT3x-style) | Polled every **500 ms**. Default reading 22.00 °C / 40.00 %RH with small random drift. |
 | Tamper switch | GPIO **17**, input | 1 = enclosure open (tamper) |
 | Lockout relay | GPIO **27**, output | 1 = relay engaged (lockout: door strike power cut). Fail-secure. |
+| Status LED | GPIO **22**, output | Indicator only. No security behaviour depends on it. |
 
 **Thresholds** (a breach is strictly greater than the threshold):
 - Temperature > **45.00 °C** (`temp_cx100 > 4500`)
@@ -294,6 +296,30 @@ simulation build passes it explicitly). With it OFF, the control-socket sources 
 
 Reply: `{"ok":true,"state":"NORMAL"|"LOCKED_OUT","relay":0|1,"tamper":bool,"temp_cx100":int,"humidity_px100":int}`,
 or `{"ok":false,"error":"..."}`.
+
+**Accepted values.** `value` is a JSON boolean. `value_cx100` and `value_px100` are JSON integers (floats such as
+`4650.0` are rejected) within the range the sensor's 16-bit raw format can represent:
+
+| Field | Range | Meaning |
+|---|---|---|
+| `value_cx100` | `-4500` to `13000` | −45.00 °C to 130.00 °C |
+| `value_px100` | `0` to `10000` | 0.00 %RH to 100.00 %RH |
+
+A request that is malformed, has an unknown `op`, or carries a missing, wrongly typed or out-of-range value gets
+`{"ok":false,"error":"..."}`, changes nothing, and leaves the connection open.
+
+**Limits.**
+- The maximum line length is **1024 bytes**, including the newline. A longer line closes the connection without a reply.
+- A connection that sends no complete line within **60 s** is closed.
+
+### 4.2 Connection limits and bind address
+
+These apply to both the reader channel (§2) and the control socket (§4.1):
+
+- Each server holds at most **16** connections at once. A connection beyond that is accepted and immediately closed.
+- Each server binds to `127.0.0.1` by default. The address is configurable through `VAULTNODE_BIND_ADDR` (§1), and one
+  value applies to both servers. A compose deployment must widen it for the testbench to connect, and MUST still not
+  publish port 5556 to the host (§7).
 
 ---
 

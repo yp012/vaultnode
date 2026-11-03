@@ -41,12 +41,16 @@ endif()
 # ---------------------------------------------------------------------------
 add_library(vaultnode_core STATIC
   src/build_info.cpp
-  src/crypto.cpp)
+  src/crypto.cpp
+  src/hal_gpio.cpp
+  src/hal_i2c.cpp
+  src/hal_line_server.cpp
+  src/hal_serial.cpp)
 
 if(VAULTNODE_SIM_CONTROL)
   # When OFF, the control socket is neither listed as a source nor defined,
   # so none of its code can end up in the binary.
-  target_sources(vaultnode_core PRIVATE src/control_socket.cpp)
+  target_sources(vaultnode_core PRIVATE src/control_socket.cpp src/hal_sim_control.cpp)
   target_compile_definitions(vaultnode_core PUBLIC VAULTNODE_SIM_CONTROL=1)
 endif()
 
@@ -74,11 +78,19 @@ target_link_libraries(vaultnode-firmware PRIVATE vaultnode_core vaultnode_harden
 add_executable(vaultnode_tests
   tests/test_main.cpp
   tests/test_build_info.cpp
-  tests/test_crypto.cpp)
+  tests/test_crypto.cpp
+  tests/test_hal_gpio.cpp
+  tests/test_hal_i2c.cpp
+  tests/test_hal_serial.cpp)
+if(VAULTNODE_SIM_CONTROL)
+  target_sources(vaultnode_tests PRIVATE tests/test_hal_sim_control.cpp)
+endif()
 target_include_directories(vaultnode_tests PRIVATE tests)
 target_link_libraries(vaultnode_tests PRIVATE vaultnode_core vaultnode_hardening)
 
 add_test(NAME vaultnode_tests COMMAND vaultnode_tests)
+# A lock or socket bug should fail the run, not hang it.
+set_tests_properties(vaultnode_tests PROPERTIES TIMEOUT 180)
 if(VAULTNODE_SANITIZE)
   set_tests_properties(vaultnode_tests PROPERTIES ENVIRONMENT
     "ASAN_OPTIONS=detect_leaks=1:abort_on_error=1;UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=1")

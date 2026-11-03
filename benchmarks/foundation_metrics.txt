@@ -4,7 +4,7 @@
 ======================================================================
 == 0. ENVIRONMENT
 ======================================================================
-date_utc: 2026-10-28T01:13:41Z
+date_utc: 2026-11-03T01:16:40Z
 $ grep PRETTY_NAME /etc/os-release
 PRETTY_NAME="Ubuntu 24.04.5 LTS"
 [exit=0]
@@ -39,8 +39,9 @@ OpenSSL 3.0.13 30 Jan 2024 (Library: OpenSSL 3.0.13 30 Jan 2024)
 ======================================================================
 == 1a. TESTS: DEFAULT BUILD
 ======================================================================
-$ cmake -S . -B build >/dev/null && cmake --build build 2>&1 | tail -3
-[ 90%] Building CXX object firmware/CMakeFiles/vaultnode_tests.dir/tests/test_crypto.cpp.o
+-- gpio:/line server: lines on stderr below are expected: tests that deliberately throw from callbacks
+$ cmake -S . -B build >/dev/null && cmake --build build -j"$JOBS" 2>&1 | tail -3
+[ 94%] Building CXX object firmware/CMakeFiles/vaultnode_tests.dir/tests/test_hal_sim_control.cpp.o
 [100%] Linking CXX executable vaultnode_tests
 [100%] Built target vaultnode_tests
 [exit=0]
@@ -49,14 +50,20 @@ $ ctest --test-dir build --output-on-failure
 Internal ctest changing into directory: /work/build
 Test project /work/build
     Start 1: vaultnode_tests
-1/1 Test #1: vaultnode_tests ..................   Passed    0.00 sec
+1/1 Test #1: vaultnode_tests ..................   Passed    2.53 sec
 
 100% tests passed, 0 tests failed out of 1
 
-Total Test time (real) =   0.00 sec
+Total Test time (real) =   2.53 sec
 [exit=0]
 
 $ build/firmware/vaultnode_tests | tee build/tests_output.txt
+gpio: callback on pin 22 threw: expected test error
+gpio: callback on pin 22 threw
+gpio: callback on pin 22 threw: expected test error
+gpio: callback on pin 22 threw
+line server: handler threw: expected test error
+line server: handler threw
 [ OK ] firmware_version_is_set
 [ OK ] openssl_is_3x
 [ OK ] mosquitto_links
@@ -85,16 +92,78 @@ $ build/firmware/vaultnode_tests | tee build/tests_output.txt
 [ OK ] derive_rejects_bad_lengths
 [ OK ] hex_decode_strict
 [ OK ] secure_bytes_move_semantics
-28 tests, 0 failed
+[ OK ] gpio_pins_match_protocol_and_start_low
+[ OK ] gpio_enforces_direction_and_rejects_unknown_pins
+[ OK ] gpio_callback_fires_on_change_only
+[ OK ] gpio_callback_filters_by_edge_and_pin
+[ OK ] gpio_callback_can_call_back_into_gpio
+[ OK ] gpio_nested_writes_are_delivered_in_order
+[ OK ] gpio_removed_callback_stops_firing_and_can_remove_itself
+[ OK ] gpio_throwing_callback_does_not_wedge_dispatch
+[ OK ] gpio_concurrent_edges_arrive_in_order
+[ OK ] gpio_remove_waits_for_in_flight_callback
+[ OK ] sht3x_temp_conversion_at_known_raw_values
+[ OK ] sht3x_humidity_conversion_at_known_raw_values
+[ OK ] sht3x_conversion_round_trips_every_fixed_point_value
+[ OK ] i2c_bus_routes_by_address_and_nacks_otherwise
+[ OK ] sht3x_default_reading_stays_near_protocol_default
+[ OK ] sht3x_noise_is_reproducible_for_a_seed
+[ OK ] sht3x_noise_is_stable_across_builds
+[ OK ] sht3x_override_is_exact_and_clearable
+[ OK ] sht3x_override_rejects_out_of_range_and_keeps_old_value
+[ OK ] sht3x_is_safe_under_concurrent_reads_and_overrides
+[ OK ] serial_defaults_match_protocol
+[ OK ] serial_port_is_configurable
+[ OK ] serial_reassembles_partial_line
+[ OK ] serial_splits_two_lines_in_one_send
+[ OK ] serial_handles_line_and_a_half_across_sends
+[ OK ] serial_handles_many_lines_larger_than_a_read_chunk
+[ OK ] serial_accepts_line_of_exactly_max_length
+[ OK ] serial_drops_oversize_line_with_newline
+[ OK ] serial_drops_oversize_line_before_any_newline
+[ OK ] serial_keeps_connection_at_longest_possible_partial
+[ OK ] serial_delivers_valid_line_before_oversize_then_drops
+[ OK ] serial_oversize_drop_does_not_affect_other_clients
+[ OK ] serial_passes_empty_and_binary_lines_to_handler
+[ OK ] serial_times_out_silent_connection
+[ OK ] serial_partial_bytes_do_not_extend_timeout
+[ OK ] serial_complete_line_restarts_timeout
+[ OK ] serial_stalled_client_does_not_block_others
+[ OK ] serial_handler_can_reply_and_close
+[ OK ] serial_handler_exception_closes_only_that_connection
+[ OK ] serial_client_disconnect_discards_partial_line_and_notifies
+[ OK ] serial_close_handler_fires_once_per_connection_including_on_stop
+[ OK ] serial_rejects_connections_over_the_limit_then_recovers
+[ OK ] serial_client_that_never_reads_is_dropped
+[ OK ] serial_invalid_config_and_port_conflict_throw
+[ OK ] serial_port_rebinds_while_old_connection_in_time_wait
+[ OK ] serial_can_restart_after_stop
+[ OK ] serial_leaks_no_file_descriptors
+[ OK ] unique_fd_owns_and_moves
+[ OK ] control_default_port_matches_protocol
+[ OK ] control_status_reply_has_exactly_the_protocol_fields
+[ OK ] control_tamper_drives_gpio_and_fires_the_edge
+[ OK ] control_set_temp_and_humidity_override_the_sensor
+[ OK ] control_clear_overrides_returns_to_drift
+[ OK ] control_reports_relay_and_state
+[ OK ] control_ignores_unknown_fields
+[ OK ] control_rejects_malformed_requests_and_stays_up
+[ OK ] control_error_codes_distinguish_the_failure
+[ OK ] control_rejects_unknown_ops
+[ OK ] control_rejects_non_protocol_set_format
+[ OK ] control_rejects_bad_values_without_side_effects
+[ OK ] control_drops_oversize_line_and_keeps_serving
+[ OK ] control_handles_two_requests_in_one_send
+90 tests, 0 failed
 [exit=0]
 
 
 ======================================================================
 == 1b. TESTS: VAULTNODE_SANITIZE=ON (ASan + UBSan + LeakSanitizer)
 ======================================================================
-$ cmake -S . -B build-asan -DVAULTNODE_SANITIZE=ON | grep VaultNode && cmake --build build-asan 2>&1 | tail -3
+$ cmake -S . -B build-asan -DVAULTNODE_SANITIZE=ON | grep VaultNode && cmake --build build-asan -j"$JOBS" 2>&1 | tail -3
 -- VaultNode: VAULTNODE_SIM_CONTROL=ON VAULTNODE_SANITIZE=ON
-[ 90%] Building CXX object firmware/CMakeFiles/vaultnode_tests.dir/tests/test_crypto.cpp.o
+[ 94%] Building CXX object firmware/CMakeFiles/vaultnode_tests.dir/tests/test_hal_sim_control.cpp.o
 [100%] Linking CXX executable vaultnode_tests
 [100%] Built target vaultnode_tests
 [exit=0]
@@ -103,15 +172,21 @@ $ ctest --test-dir build-asan --output-on-failure
 Internal ctest changing into directory: /work/build-asan
 Test project /work/build-asan
     Start 1: vaultnode_tests
-1/1 Test #1: vaultnode_tests ..................   Passed    0.02 sec
+1/1 Test #1: vaultnode_tests ..................   Passed    3.21 sec
 
 100% tests passed, 0 tests failed out of 1
 
-Total Test time (real) =   0.02 sec
+Total Test time (real) =   3.21 sec
 [exit=0]
 
 $ ASAN_OPTIONS=detect_leaks=1:abort_on_error=1 UBSAN_OPTIONS=halt_on_error=1 build-asan/firmware/vaultnode_tests | tee build-asan/tests_output.txt | tail -1
-28 tests, 0 failed
+gpio: callback on pin 22 threw: expected test error
+gpio: callback on pin 22 threw
+gpio: callback on pin 22 threw: expected test error
+gpio: callback on pin 22 threw
+line server: handler threw: expected test error
+line server: handler threw
+90 tests, 0 failed
 [exit=0]
 
 $ grep -o "fsanitize=[a-z,]*" build-asan/compile_commands.json | sort -u
@@ -130,8 +205,24 @@ $ grep -c "^TEST(" firmware/tests/test_build_info.cpp
 5
 [exit=0]
 
-$ grep -h "^TEST(" firmware/tests/*.cpp | wc -l
+$ grep -c "^TEST(" firmware/tests/test_hal_gpio.cpp
+10
+[exit=0]
+
+$ grep -c "^TEST(" firmware/tests/test_hal_i2c.cpp
+10
+[exit=0]
+
+$ grep -c "^TEST(" firmware/tests/test_hal_serial.cpp
 28
+[exit=0]
+
+$ grep -c "^TEST(" firmware/tests/test_hal_sim_control.cpp
+14
+[exit=0]
+
+$ grep -h "^TEST(" firmware/tests/*.cpp | wc -l
+90
 [exit=0]
 
 $ grep -c "add_test(" firmware/CMakeLists.txt
@@ -157,7 +248,64 @@ TOTAL known-answer assertions:     17
 (not counted: hmac_empty_message_ok, a widely published but non-standard vector)
 
 ======================================================================
-== 2. HARDENING: vaultnode-firmware (default build)
+== 1e. TESTS: VAULTNODE_SIM_CONTROL=OFF, AND CONTROL-SERVER SYMBOL CHECK
+======================================================================
+$ cmake -S . -B build-off -DVAULTNODE_SIM_CONTROL=OFF | grep VaultNode && cmake --build build-off -j"$JOBS" 2>&1 | tail -3
+-- VaultNode: VAULTNODE_SIM_CONTROL=OFF VAULTNODE_SANITIZE=OFF
+[ 93%] Building CXX object firmware/CMakeFiles/vaultnode_tests.dir/tests/test_hal_serial.cpp.o
+[100%] Linking CXX executable vaultnode_tests
+[100%] Built target vaultnode_tests
+[exit=0]
+
+$ ctest --test-dir build-off --output-on-failure
+Internal ctest changing into directory: /work/build-off
+Test project /work/build-off
+    Start 1: vaultnode_tests
+1/1 Test #1: vaultnode_tests ..................   Passed    2.50 sec
+
+100% tests passed, 0 tests failed out of 1
+
+Total Test time (real) =   2.51 sec
+[exit=0]
+
+$ build-off/firmware/vaultnode_tests | tee build-off/tests_output.txt | tail -1
+gpio: callback on pin 22 threw: expected test error
+gpio: callback on pin 22 threw
+gpio: callback on pin 22 threw: expected test error
+gpio: callback on pin 22 threw
+line server: handler threw: expected test error
+line server: handler threw
+76 tests, 0 failed
+[exit=0]
+
+$ ar t build-off/firmware/libvaultnode_core.a | xargs
+build_info.cpp.o crypto.cpp.o hal_gpio.cpp.o hal_i2c.cpp.o hal_line_server.cpp.o hal_serial.cpp.o
+[exit=0]
+
+$ ar t build/firmware/libvaultnode_core.a | xargs
+build_info.cpp.o crypto.cpp.o hal_gpio.cpp.o hal_i2c.cpp.o hal_line_server.cpp.o hal_serial.cpp.o control_socket.cpp.o hal_sim_control.cpp.o
+[exit=0]
+
+-- matches of /SimControl|control_socket|sim::|hal_sim_control/ (nm -C) and /SIM CONTROL|UNAUTHENTICATED|set_temp|set_humidity|clear_overrides|malformed_json|unknown_op|value_cx100|value_px100|SimControl/ (strings -a).
+-- The ON build is the positive control: it shows the search can find this code.
+build      vaultnode-firmware     nm=1   strings=1
+build-off  vaultnode-firmware     nm=0   strings=0
+build      vaultnode_tests        nm=13  strings=58
+build-off  vaultnode_tests        nm=0   strings=0
+build      libvaultnode_core.a    nm=13  strings=21
+build-off  libvaultnode_core.a    nm=0   strings=0
+off_build_total_matches=0
+
+-- HAL symbols per binary. vaultnode-firmware has none in either build (main.cpp is a stub
+-- that links no HAL code), so its zero above is weak evidence: the library and the test
+-- binary are what show the control server is compiled out.
+build      vaultnode-firmware     hal_symbols=0
+build      vaultnode_tests        hal_symbols=87
+build-off  vaultnode-firmware     hal_symbols=0
+build-off  vaultnode_tests        hal_symbols=80
+
+======================================================================
+== 2. HARDENING: vaultnode-firmware (default build; stub entry point, contains no HAL or crypto code)
 ======================================================================
 $ file build/firmware/vaultnode-firmware
 build/firmware/vaultnode-firmware: ELF 64-bit LSB pie executable, ARM aarch64, version 1 (SYSV), dynamically linked, interpreter /lib/ld-linux-aarch64.so.1, BuildID[sha1]=3d807710411f3ada6b20d09c66d7e19124155fb1, for GNU/Linux 3.7.0, not stripped
@@ -183,9 +331,9 @@ $ nm -D build/firmware/vaultnode-firmware | grep -E '__stack_chk_fail|_chk@'
 [exit=0]
 
 $ grep -oE -- '-fstack-protector-strong|-U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2|-fPIE' build/compile_commands.json | sort | uniq -c
-      7 -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2
-      7 -fPIE
-      7 -fstack-protector-strong
+     16 -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2
+     16 -fPIE
+     16 -fstack-protector-strong
 [exit=0]
 
 $ checksec --file=build/firmware/vaultnode-firmware
@@ -196,9 +344,40 @@ Full RELRO      Canary found      NX enabled    PIE enabled     No RPATH   No RU
 computed: PIE=1 FullRELRO=1 BIND_NOW=1 canary=1 NX=1 FORTIFY=1 -> 6/6
 
 ======================================================================
+== 2b. HARDENING: vaultnode_tests (default build; the binary that actually contains the crypto and HAL code)
+======================================================================
+$ readelf -h build/firmware/vaultnode_tests | grep Type
+  Type:                              DYN (Position-Independent Executable file)
+[exit=0]
+
+$ readelf -lW build/firmware/vaultnode_tests | grep -E 'GNU_RELRO|GNU_STACK'
+  GNU_STACK      0x000000 0x0000000000000000 0x0000000000000000 0x000000 0x000000 RW  0x10
+  GNU_RELRO      0x07f078 0x000000000008f078 0x000000000008f078 0x000f88 0x000f88 R   0x1
+[exit=0]
+
+$ readelf -d build/firmware/vaultnode_tests | grep -E 'BIND_NOW|FLAGS'
+ 0x000000000000001e (FLAGS)              BIND_NOW
+ 0x000000006ffffffb (FLAGS_1)            Flags: NOW PIE
+[exit=0]
+
+$ nm -D build/firmware/vaultnode_tests | grep -E '__stack_chk_fail|_chk@'
+                 U __fprintf_chk@GLIBC_2.17
+                 U __printf_chk@GLIBC_2.17
+                 U __snprintf_chk@GLIBC_2.17
+                 U __stack_chk_fail@GLIBC_2.17
+[exit=0]
+
+$ checksec --file=build/firmware/vaultnode_tests
+RELRO           STACK CANARY      NX            PIE             RPATH      RUNPATH	Symbols		FORTIFY	Fortified	Fortifiable	FILE
+Full RELRO      Canary found      NX enabled    PIE enabled     No RPATH   No RUNPATH   1633 Symbols	  Yes	3		8		build/firmware/vaultnode_tests
+[exit=0]
+
+computed: PIE=1 FullRELRO=1 BIND_NOW=1 canary=1 NX=1 FORTIFY=1 -> 6/6
+
+======================================================================
 == 3. BINARY SIZE (Release-style build: CMAKE_BUILD_TYPE=Release)
 ======================================================================
-$ cmake -S . -B build-rel -DCMAKE_BUILD_TYPE=Release >/dev/null && cmake --build build-rel 2>&1 | tail -1
+$ cmake -S . -B build-rel -DCMAKE_BUILD_TYPE=Release >/dev/null && cmake --build build-rel -j"$JOBS" 2>&1 | tail -1
 [100%] Built target vaultnode_tests
 [exit=0]
 
@@ -218,21 +397,32 @@ T vaultnode::mosquitto_version[abi:cxx11]()
 T vaultnode::sim::control_socket_banner()
 [exit=0]
 
+vaultnode::hal:: symbols in this binary:    0
+vaultnode::crypto:: symbols in this binary: 0
 
 ======================================================================
 == 4. VALGRIND memcheck on vaultnode_tests (NON-sanitized default build)
 ======================================================================
--- flags: --leak-check=full --error-exitcode=1 (full valgrind stderr; test stdout discarded)
+-- flags: --leak-check=full --error-exitcode=1 (full valgrind stderr; test results summarized)
+-- A failing test also exits 1, so the test summary is reported separately. The socket tests
+-- use short timeouts and Valgrind is slow, so any FAIL lines below would be listed here.
 valgrind_exit=0
+tests_under_valgrind: 90 tests, 0 failed
 ==PID== Memcheck, a memory error detector
 ==PID== Copyright (C) 2002-2022, and GNU GPL'd, by Julian Seward et al.
 ==PID== Using Valgrind-3.22.0 and LibVEX; rerun with -h for copyright info
 ==PID== Command: build/firmware/vaultnode_tests
 ==PID== 
+gpio: callback on pin 22 threw: expected test error
+gpio: callback on pin 22 threw
+gpio: callback on pin 22 threw: expected test error
+gpio: callback on pin 22 threw
+line server: handler threw: expected test error
+line server: handler threw
 ==PID== 
 ==PID== HEAP SUMMARY:
 ==PID==     in use at exit: 721 bytes in 12 blocks
-==PID==   total heap usage: 15,308 allocs, 15,296 frees, 1,312,461 bytes allocated
+==PID==   total heap usage: 52,907 allocs, 52,895 frees, 20,457,017 bytes allocated
 ==PID== 
 ==PID== LEAK SUMMARY:
 ==PID==    definitely lost: 0 bytes in 0 blocks
@@ -265,8 +455,15 @@ valgrind_exit=0
       1 CRYPTO_strndup 
       7 CRYPTO_zalloc 
       1 OPENSSL_sk_deep_copy 
-      7 vaultnode::crypto::derive_badge_keys(vaultnode::crypto::ByteView, vaultnode::crypto::ByteView) 
-      8 vaultnode::crypto::hmac_sha256
+     12 vaultnode::crypto::derive_badge_keys(vaultnode::crypto::ByteView, vaultnode::crypto::ByteView) 
+     12 vaultnode::crypto::hmac_sha256
+
+-- loss records whose stack (up to 40 frames) passes through vaultnode::crypto::hmac_sha256:
+reachable_records=12 via_hmac_sha256=12
+
+-- file descriptors open at exit (--track-fds=yes). The 3 standard streams and anything
+-- inherited from the container are expected; a leaked socket would be listed with its frames.
+==PID== FILE DESCRIPTORS: 3 open (3 std) at exit.
 
 ======================================================================
 == 5. CPPCHECK (counts exclude the informational checkersReport summary line)
@@ -276,6 +473,12 @@ $ cppcheck --enable=all --inconclusive --suppress=missingIncludeSystem  firmware
 firmware/src/build_info.cpp:1: information: missingInclude: Include file: "vaultnode/build_info.hpp" not found.
 firmware/src/control_socket.cpp:1: information: missingInclude: Include file: "vaultnode/control_socket.hpp" not found.
 firmware/src/crypto.cpp:1: information: missingInclude: Include file: "vaultnode/crypto.hpp" not found.
+firmware/src/hal_gpio.cpp:1: information: missingInclude: Include file: "vaultnode/hal_gpio.hpp" not found.
+firmware/src/hal_i2c.cpp:1: information: missingInclude: Include file: "vaultnode/hal_i2c.hpp" not found.
+firmware/src/hal_line_server.cpp:1: information: missingInclude: Include file: "vaultnode/hal_line_server.hpp" not found.
+firmware/src/hal_line_server.cpp:50: style: functionConst: Technically the member function 'vaultnode::hal::::ConnectionIo::service' can be const.
+firmware/src/hal_serial.cpp:1: information: missingInclude: Include file: "vaultnode/hal_serial.hpp" not found.
+firmware/src/hal_sim_control.cpp:1: information: missingInclude: Include file: "vaultnode/hal_sim_control.hpp" not found.
 firmware/src/main.cpp:4: information: missingInclude: Include file: "vaultnode/build_info.hpp" not found.
 firmware/src/main.cpp:6: information: missingInclude: Include file: "vaultnode/control_socket.hpp" not found.
 firmware/src/crypto.cpp:108: style: unusedFunction: The function 'constant_time_equal' is never used.
@@ -284,15 +487,16 @@ firmware/src/crypto.cpp:138: style: unusedFunction: The function 'aes128cbc_decr
 firmware/src/crypto.cpp:167: style: unusedFunction: The function 'secure_random' is never used.
 firmware/src/crypto.cpp:180: style: unusedFunction: The function 'derive_badge_keys' is never used.
 firmware/src/crypto.cpp:202: style: unusedFunction: The function 'hex_encode' is never used.
-finding_count=11
-by_severity: 5 information 6 style
-by_id:       5 missingInclude 6 unusedFunction
+finding_count=17
+by_severity: 10 information 7 style
+by_id:       1 functionConst 10 missingInclude 6 unusedFunction
 
 -- b_include
 $ cppcheck --enable=all --inconclusive --suppress=missingIncludeSystem -I firmware/include firmware/src firmware/include
 firmware/include/vaultnode/crypto.hpp:60: style: noExplicitConstructor: Class 'ByteView' has a constructor with 1 argument that is not explicit.
 firmware/include/vaultnode/crypto.hpp:61: style: noExplicitConstructor: Class 'ByteView' has a constructor with 1 argument that is not explicit.
 firmware/include/vaultnode/crypto.hpp:63: style: noExplicitConstructor: Class 'ByteView' has a constructor with 1 argument that is not explicit.
+firmware/src/hal_line_server.cpp:50: style: functionConst: Technically the member function 'vaultnode::hal::::ConnectionIo::service' can be const.
 firmware/include/vaultnode/build_info.hpp:15: style: unusedFunction: The function 'sim_control_enabled' is never used.
 firmware/include/vaultnode/crypto.hpp:65: style: unusedFunction: The function 'of_string' is never used.
 firmware/src/crypto.cpp:108: style: unusedFunction: The function 'constant_time_equal' is never used.
@@ -301,9 +505,12 @@ firmware/src/crypto.cpp:138: style: unusedFunction: The function 'aes128cbc_decr
 firmware/src/crypto.cpp:167: style: unusedFunction: The function 'secure_random' is never used.
 firmware/src/crypto.cpp:180: style: unusedFunction: The function 'derive_badge_keys' is never used.
 firmware/src/crypto.cpp:202: style: unusedFunction: The function 'hex_encode' is never used.
-finding_count=11
-by_severity: 11 style
-by_id:       3 noExplicitConstructor 8 unusedFunction
+firmware/src/hal_gpio.cpp:79: style: unusedFunction: The function 'on_edge' is never used.
+firmware/src/hal_gpio.cpp:88: style: unusedFunction: The function 'remove_callback' is never used.
+firmware/src/hal_i2c.cpp:8: style: unusedFunction: The function 'attach' is never used.
+finding_count=15
+by_severity: 15 style
+by_id:       1 functionConst 3 noExplicitConstructor 11 unusedFunction
 
 
 ======================================================================
@@ -313,40 +520,108 @@ $ find firmware/src firmware/include firmware/tests -type f \( -name "*.cpp" -o 
 firmware/include/vaultnode/build_info.hpp
 firmware/include/vaultnode/control_socket.hpp
 firmware/include/vaultnode/crypto.hpp
+firmware/include/vaultnode/hal_fd.hpp
+firmware/include/vaultnode/hal_gpio.hpp
+firmware/include/vaultnode/hal_i2c.hpp
+firmware/include/vaultnode/hal_line_server.hpp
+firmware/include/vaultnode/hal_serial.hpp
+firmware/include/vaultnode/hal_sim_control.hpp
 firmware/src/build_info.cpp
 firmware/src/control_socket.cpp
 firmware/src/crypto.cpp
+firmware/src/hal_gpio.cpp
+firmware/src/hal_i2c.cpp
+firmware/src/hal_line_server.cpp
+firmware/src/hal_serial.cpp
+firmware/src/hal_sim_control.cpp
 firmware/src/main.cpp
 firmware/tests/test_build_info.cpp
 firmware/tests/test_crypto.cpp
+firmware/tests/test_hal_gpio.cpp
+firmware/tests/test_hal_i2c.cpp
+firmware/tests/test_hal_serial.cpp
+firmware/tests/test_hal_sim_control.cpp
 firmware/tests/test_harness.hpp
 firmware/tests/test_main.cpp
+firmware/tests/test_net.hpp
 [exit=0]
 
 $ wc -l $(find firmware/src firmware/include firmware/tests -type f \( -name "*.cpp" -o -name "*.hpp" \) | sort)
-   23 firmware/include/vaultnode/build_info.hpp
-   18 firmware/include/vaultnode/control_socket.hpp
-  118 firmware/include/vaultnode/crypto.hpp
-   25 firmware/src/build_info.cpp
-    9 firmware/src/control_socket.cpp
-  244 firmware/src/crypto.cpp
-   18 firmware/src/main.cpp
-   22 firmware/tests/test_build_info.cpp
-  344 firmware/tests/test_crypto.cpp
-   73 firmware/tests/test_harness.hpp
-    3 firmware/tests/test_main.cpp
-  897 total
+    23 firmware/include/vaultnode/build_info.hpp
+    18 firmware/include/vaultnode/control_socket.hpp
+   118 firmware/include/vaultnode/crypto.hpp
+    38 firmware/include/vaultnode/hal_fd.hpp
+    84 firmware/include/vaultnode/hal_gpio.hpp
+   102 firmware/include/vaultnode/hal_i2c.hpp
+    71 firmware/include/vaultnode/hal_line_server.hpp
+    37 firmware/include/vaultnode/hal_serial.hpp
+    54 firmware/include/vaultnode/hal_sim_control.hpp
+    25 firmware/src/build_info.cpp
+     9 firmware/src/control_socket.cpp
+   244 firmware/src/crypto.cpp
+   106 firmware/src/hal_gpio.cpp
+    66 firmware/src/hal_i2c.cpp
+   292 firmware/src/hal_line_server.cpp
+    23 firmware/src/hal_serial.cpp
+    97 firmware/src/hal_sim_control.cpp
+    18 firmware/src/main.cpp
+    22 firmware/tests/test_build_info.cpp
+   344 firmware/tests/test_crypto.cpp
+   201 firmware/tests/test_hal_gpio.cpp
+   180 firmware/tests/test_hal_i2c.cpp
+   503 firmware/tests/test_hal_serial.cpp
+   263 firmware/tests/test_hal_sim_control.cpp
+    73 firmware/tests/test_harness.hpp
+     3 firmware/tests/test_main.cpp
+   105 firmware/tests/test_net.hpp
+  3119 total
 [exit=0]
 
 $ cloc --quiet firmware/src firmware/include firmware/tests
-github.com/AlDanial/cloc v 1.98  T=0.01 s (1302.2 files/s, 106192.4 lines/s)
+github.com/AlDanial/cloc v 1.98  T=0.01 s (1839.1 files/s, 212453.5 lines/s)
 -------------------------------------------------------------------------------
 Language                     files          blank        comment           code
 -------------------------------------------------------------------------------
-C++                              7             97             64            504
-C/C++ Header                     4             46             35            151
+C++                             16            315             95           1986
+C/C++ Header                    11            141            101            481
 -------------------------------------------------------------------------------
-SUM:                            11            143             99            655
+SUM:                            27            456            196           2467
+-------------------------------------------------------------------------------
+[exit=0]
+
+$ cloc --quiet firmware/src firmware/include
+github.com/AlDanial/cloc v 1.98  T=0.01 s (2029.3 files/s, 160651.6 lines/s)
+-------------------------------------------------------------------------------
+Language                     files          blank        comment           code
+-------------------------------------------------------------------------------
+C++                              9            139             39            702
+C/C++ Header                     9            113             94            338
+-------------------------------------------------------------------------------
+SUM:                            18            252            133           1040
+-------------------------------------------------------------------------------
+[exit=0]
+
+$ cloc --quiet firmware/tests
+github.com/AlDanial/cloc v 1.98  T=0.01 s (1049.1 files/s, 197458.5 lines/s)
+-------------------------------------------------------------------------------
+Language                     files          blank        comment           code
+-------------------------------------------------------------------------------
+C++                              7            176             56           1284
+C/C++ Header                     2             28              7            143
+-------------------------------------------------------------------------------
+SUM:                             9            204             63           1427
+-------------------------------------------------------------------------------
+[exit=0]
+
+$ cloc --quiet firmware/src/hal_*.cpp firmware/include/vaultnode/hal_*.hpp
+github.com/AlDanial/cloc v 1.98  T=0.01 s (1514.3 files/s, 133532.7 lines/s)
+-------------------------------------------------------------------------------
+Language                     files          blank        comment           code
+-------------------------------------------------------------------------------
+C++                              5             91             12            481
+C/C++ Header                     6             79             60            247
+-------------------------------------------------------------------------------
+SUM:                            11            170             72            728
 -------------------------------------------------------------------------------
 [exit=0]
 
@@ -354,19 +629,24 @@ SUM:                            11            143             99            655
 ======================================================================
 == 7. SUMMARY (computed from the runs above)
 ======================================================================
-tests_default:          28 tests, 0 failed
-tests_sanitize:         28 tests, 0 failed
+tests_default:          90 tests, 0 failed
+tests_sanitize:         90 tests, 0 failed
+tests_sim_control_off:  76 tests, 0 failed
   CTest reports 1 test because the binary is registered as a single add_test entry;
   the individual TEST() cases run inside it (see 1c for the per-file breakdown).
 kat_assertions:         17 = 10 (PROTOCOL.md section 6) + 6 (RFC 4231) + 1 (NIST SP 800-38A)
-hardening_verified:     6/6 (PIE, Full RELRO, BIND_NOW, stack canary, NX, FORTIFY)
+control_server_off:     0 symbol/string matches in the SIM_CONTROL=OFF firmware, test binary and library
+hal_symbols:            vaultnode-firmware=0 vaultnode_tests=87 (default build)
+hardening_verified:     vaultnode-firmware 6/6, vaultnode_tests 6/6 (PIE, Full RELRO, BIND_NOW, stack canary, NX, FORTIFY)
 binary_size_release:    70.5 KB unstripped (72184 B), 66.0 KB stripped (67592 B)
-  The firmware binary is currently a stub entry point that does not link the crypto
-  module (see the symbol list in 3), so this size is not representative of the final firmware.
+  The firmware binary is currently a stub entry point that links neither the crypto module
+  nor the HAL (see the symbol list in 3), so this size is not representative of the final firmware.
 valgrind:               exit=0 errors=0 definitely=[0 bytes in 0 blocks] indirectly=[0 bytes in 0 blocks] possibly=[0 bytes in 0 blocks] still_reachable=[721 bytes in 12 blocks]
-  Still-reachable blocks are allocated inside OpenSSL via vaultnode::crypto::hmac_sha256,
+tests_under_valgrind:   90 tests, 0 failed
+  12 of 12 still-reachable loss records pass through vaultnode::crypto::hmac_sha256,
   which fetches the HMAC algorithm once (EVP_MAC_fetch) and deliberately keeps it for the
-  process lifetime. It is still referenced at exit and has a fixed size: not a leak.
-cppcheck_exact:         11 findings (0 errors/warnings)
-cppcheck_with_include:  11 findings (0 errors/warnings)
-code_size:              11 files, 897 physical lines, 655 code lines (cloc)
+  process lifetime.
+cppcheck_exact:         17 findings (0 errors/warnings)
+cppcheck_with_include:  15 findings (0 errors/warnings)
+code_size:              27 files, 3119 physical lines, 2467 code lines (cloc)
+  of which 1040 firmware (src + include) and 1427 tests; HAL sources alone: 728

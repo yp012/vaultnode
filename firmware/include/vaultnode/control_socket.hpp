@@ -12,7 +12,7 @@ namespace vaultnode::sim {
 
 constexpr std::uint16_t kControlPort = 5556;
 
-// Stub; the real implementation comes in a later step.
+// Startup warning. The server itself is SimControlServer (hal_sim_control.hpp).
 const char* control_socket_banner();
 
 }  // namespace vaultnode::sim
